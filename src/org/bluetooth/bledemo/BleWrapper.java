@@ -2,8 +2,10 @@ package org.bluetooth.bledemo;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Queue;
 import java.util.UUID;
 
 import android.app.Activity;
@@ -29,6 +31,9 @@ public class BleWrapper {
     private BleWrapperUiCallbacks mUiCallback = null;
     /* define NULL object for UI callbacks */
     private static final BleWrapperUiCallbacks NULL_CALLBACK = new BleWrapperUiCallbacks.Null(); 
+    
+    private Queue<byte[]> writeDataQueue;
+    private final int WRITE_MTU = 20;
     
     /* creates BleWrapper object, set its parent activity and callback object */
     public BleWrapper(Activity parent, BleWrapperUiCallbacks callback) {
@@ -305,12 +310,35 @@ public class BleWrapper {
     public void writeDataToCharacteristic(final BluetoothGattCharacteristic ch, final byte[] dataToWrite) {
     	if (mBluetoothAdapter == null || mBluetoothGatt == null || ch == null) return;
     	
-    	// first set it locally....
-    	ch.setValue(dataToWrite);
-    	// ... and then "commit" changes to the peripheral
-    	mBluetoothGatt.writeCharacteristic(ch);
+    	Log.i("yz", ""+Utils.printHexString(dataToWrite));
+    	writeDataQueue = splitData(dataToWrite);
+    	if(writeDataQueue.peek() != null) {
+    		Log.i("yz", ""+Utils.printHexString(writeDataQueue.peek()));
+    		ch.setValue(writeDataQueue.remove());
+    		mBluetoothGatt.writeCharacteristic(ch);
+    	}
     	
     }
+    
+    private Queue<byte[]> splitData(byte[] data) {
+    	int len = data.length;
+    	int index = 0;
+    	byte[] qElement;
+    	Queue<byte[]> queue = new LinkedList<byte[]>();
+    	while(index + WRITE_MTU <= len) {
+    		qElement = new byte[WRITE_MTU];
+    		System.arraycopy(data, index, qElement, 0, WRITE_MTU);
+    		index += WRITE_MTU;
+    		queue.offer(qElement);
+    	}
+    	if(index < len) {
+    		qElement = new byte[len - index];
+    		System.arraycopy(data, index, qElement, 0, len - index);
+    		queue.offer(qElement);
+    	}
+    	return queue;
+    }
+    
     
     /* enables/disables notification for characteristic */
     public void setNotificationForCharacteristic(BluetoothGattCharacteristic ch, boolean enabled) {
@@ -355,7 +383,7 @@ public class BleWrapper {
             	startServicesDiscovery();
             	
             	// and we also want to get RSSI value to be updated periodically
-            	startMonitoringRssiValue();
+//            	startMonitoringRssiValue();
             }
             else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
             	mConnected = false;
@@ -405,6 +433,11 @@ public class BleWrapper {
         	// let see if it failed or not
         	if(status == BluetoothGatt.GATT_SUCCESS) {
         		 mUiCallback.uiSuccessfulWrite(mBluetoothGatt, mBluetoothDevice, mBluetoothSelectedService, characteristic, description);
+        		 if(writeDataQueue.peek() != null) {
+        			 Log.i("yz", "onCharacteristic:"+Utils.printHexString(writeDataQueue.peek()));
+        			 characteristic.setValue(writeDataQueue.remove());
+        			 mBluetoothGatt.writeCharacteristic(characteristic);
+        		 }
         	}
         	else {
         		 mUiCallback.uiFailedWrite(mBluetoothGatt, mBluetoothDevice, mBluetoothSelectedService, characteristic, description + " STATUS = " + status);
