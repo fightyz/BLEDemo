@@ -344,6 +344,7 @@ public class BleWrapper {
     public void setNotificationForCharacteristic(BluetoothGattCharacteristic ch, boolean enabled) {
         if (mBluetoothAdapter == null || mBluetoothGatt == null) return;
         
+        Log.i("yz", "setNotificationForCharacteristic--- " + enabled);
         boolean success = mBluetoothGatt.setCharacteristicNotification(ch, enabled);
         if(!success) {
         	Log.e("------", "Seting proper notification status for characteristic failed!");
@@ -351,9 +352,16 @@ public class BleWrapper {
         
         // This is also sometimes required (e.g. for heart rate monitors) to enable notifications/indications
         // see: https://developer.bluetooth.org/gatt/descriptors/Pages/DescriptorViewer.aspx?u=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
+        int props = ch.getProperties();
+        byte[] ENABLE_VALUE = null;
+        if ((props & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) {
+        	ENABLE_VALUE = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE;
+        } else if((props & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
+        	ENABLE_VALUE = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE;
+        }
         BluetoothGattDescriptor descriptor = ch.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"));
         if(descriptor != null) {
-        	byte[] val = enabled ? BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE : BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE;
+        	byte[] val = enabled ? ENABLE_VALUE : BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE;
 	        descriptor.setValue(val);
 	        mBluetoothGatt.writeDescriptor(descriptor);
         }
@@ -417,6 +425,7 @@ public class BleWrapper {
         {
         	// characteristic's value was updated due to enabled notification, lets get this value
         	// the value itself will be reported to the UI inside getCharacteristicValue
+        	Log.i("yz", "indication ");
         	getCharacteristicValue(characteristic);
         	// also, notify UI that notification are enabled for particular characteristic
         	mUiCallback.uiGotNotification(mBluetoothGatt, mBluetoothDevice, mBluetoothSelectedService, characteristic);

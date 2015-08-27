@@ -186,7 +186,13 @@ public class CharacteristicDetailsAdapter extends BaseAdapter {
         if((props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) propertiesString += "write_no_response ";
         fields.charProperties.setText(propertiesString + "]");
         
-        fields.notificationBtn.setEnabled((props & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0);
+        if ((props & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
+        	fields.notificationBtn.setTextOn("Indicate");
+        	fields.notificationBtn.setTextOff("Indicate");
+        }
+        
+        fields.notificationBtn.setEnabled((props & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
+        								|| (props & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0);
         fields.notificationBtn.setChecked(mNotificationEnabled);
         fields.readBtn.setEnabled((props & BluetoothGattCharacteristic.PROPERTY_READ) != 0);
         fields.writeBtn.setEnabled((props & (BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) != 0);
